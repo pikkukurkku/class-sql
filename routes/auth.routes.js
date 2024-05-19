@@ -1,7 +1,7 @@
 const router = require("express").Router();
-
 const db = require("../db");
 const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 
 router.post("/signup", async (req, res) => {
     try {
@@ -22,6 +22,7 @@ if(userToFind) {
     res.status(400).json({message: "User already exists"});
     return;
 }
+
 const hashedPassword = await bcrypt.hash(password, 10);
 
 const newUser = await db.user.create({
@@ -37,15 +38,58 @@ const newUser = await db.user.create({
     }
 });
 
+delete newUser.password;
 
-res.status(200).json({
-    data: {
-        ...newUser,
-    }
+res.json({ data: { ...newUser }, success: true });
+} catch (error) {
+  res.status(500).json({ message: error.message, success: false });
+}
 });
-    } catch (error) {
-        res.status(500).json({ message: error.message })
-    }
-})
+
+
+router.post("/login", async (req, res) => {
+    try {
+        const { email, password } = req.body;
+    
+        if (!email || !password) {
+          return res.status(400).json({
+            message: "Please provide all necessary fields",
+            success: false,
+          });
+        }
+    
+        const userToFind = await db.user.findFirst({
+          where: {
+            email,
+          },
+        });
+    
+        if (!userToFind) {
+          return res
+            .status(400)
+            .json({ message: "User not found", success: false });
+        }
+
+const isPasswordValid = await bcrypt.compare(password, userToFind.password);
+
+if (!isPasswordValid) {
+    return res
+    .status(400)
+    .json({message: "Invalid password", success: false});
+}
+
+delete userToFind.password;
+
+const payload = {
+    id: userToFind.id,
+    email: userToFind.email,
+};
+
+const authToken = jwt.sign(payload, process.env.TOKEN_SECRET);
+res.status(200).json({ data: {...userToFind, authToken }, success: true });
+} catch (error) {
+    res.status(500).json({ message: error.message, success: false });
+  }
+});
 
 module.exports = router;
