@@ -23,7 +23,7 @@ res.json({
     }
 });
 
-router.get("/tasks/:userId", async (req, res) => {
+router.get("/task/:userId", async (req, res) => {
     try{
         const { userId } = req.params;
 
@@ -73,6 +73,23 @@ router.patch("/task/:taskId", async (req, res, next) => {
       });
   
       res.json({ data: { task: { ...updatedTask }, success: true } });
+    } catch (error) {
+      res.status(500).json({ message: error.message, success: false });
+    }
+  });
+
+  router.delete("/task/:taskId", async (req, res, next) => {
+    try {
+      const { taskId } = req.params;
+  
+   
+      await db.task.delete({
+        where: {
+          id: taskId,
+        },
+      });
+  
+      res.json({ success: true } );
     } catch (error) {
       res.status(500).json({ message: error.message, success: false });
     }
